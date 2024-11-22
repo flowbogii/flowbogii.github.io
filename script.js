@@ -1,24 +1,33 @@
 const { createFFmpeg, fetchFile } = FFmpeg;
 const ffmpeg = createFFmpeg({ log: true });
 
+function updateProgress(message, percentage) {
+    document.getElementById("progressText").innerText = message;
+    document.getElementById("progressBar").style.width = `${percentage}%`;
+}
+
 async function createGIF(file) {
+    updateProgress("Video wird verarbeitet...", 10);
     await ffmpeg.load();
     ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
 
     // Erstelle ein GIF aus dem Video
+    updateProgress("GIF wird erstellt...", 30);
     await ffmpeg.run('-i', 'input.mp4', '-vf', 'fps=5,scale=320:-1:flags=lanczos', 'output.gif');
     const gifData = ffmpeg.FS('readFile', 'output.gif');
+    updateProgress("GIF ist fertig", 40);
     return URL.createObjectURL(new Blob([gifData.buffer], { type: 'image/gif' }));
 }
 
 async function extractFrames(file, fps) {
+    updateProgress("Frames werden extrahiert...", 50);
     await ffmpeg.load();
     ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
 
     // Extrahiere Frames mit der gewählten FPS
     await ffmpeg.run('-i', 'input.mp4', `-vf`, `fps=${fps}`, 'frame_%03d.png');
-
     const frames = ffmpeg.FS('readdir', '.').filter((file) => file.startsWith('frame_') && file.endsWith('.png'));
+    updateProgress("Frames extrahiert", 70);
     return frames.map((frame) => {
         const data = ffmpeg.FS('readFile', frame);
         return new Blob([data.buffer], { type: 'image/png' });
@@ -47,6 +56,8 @@ async function createStroboscope(file, fps, transparency) {
     const keyData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
 
     for (let i = 1; i < images.length; i++) {
+        updateProgress(`Verarbeitung Frame ${i} von ${images.length}...`, 70 + (i / images.length) * 20);
+
         const frame = images[i];
         const offscreenCanvas = document.createElement('canvas');
         const offscreenCtx = offscreenCanvas.getContext('2d');
@@ -76,6 +87,8 @@ async function createStroboscope(file, fps, transparency) {
 
     const resultImg = document.getElementById('outputImage');
     resultImg.src = canvas.toDataURL();
+
+    updateProgress("Stroboskop-Bild fertig!", 100);
 }
 
 function findLargestContour(bgPixels, framePixels, width, height) {
@@ -100,6 +113,8 @@ document.getElementById('generateButton').addEventListener('click', async () => 
         alert('Bitte lade ein Video hoch!');
         return;
     }
+
+    updateProgress("Start...", 0);
 
     const videoFile = fileInput.files[0];
     const gifPreview = await createGIF(videoFile);
