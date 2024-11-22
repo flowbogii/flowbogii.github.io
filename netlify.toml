@@ -1,0 +1,6 @@
+[[headers]]
+# Wende Header für alle Dateien auf der Website an
+for = "/*"
+[headers.values]
+  Cross-Origin-Embedder-Policy = "require-corp"
+  Cross-Origin-Opener-Policy = "same-origin"
