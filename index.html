@@ -3,31 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stroboskop-Bild Generator</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            text-align: center;
-        }
-        input, button {
-            margin: 10px 0;
-            padding: 10px;
-        }
-        canvas {
-            margin-top: 20px;
-            border: 1px solid #ccc;
-        }
-    </style>
+    <title>Momento</title>
 </head>
 <body>
     <h1>Momento</h1>
-    <input type="file" id="videoInput" accept="video/*">
-    <button id="processButton">Verarbeiten</button>
-    <div id="loading" style="display: none;">Verarbeite Video...</div>
-    <canvas id="canvas"></canvas>
-
-    <script src="ffmpeg.min.js"></script>
+    <input type="file" id="uploadButton" accept="video/*">
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.3/dist/ffmpeg.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

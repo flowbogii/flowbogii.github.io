@@ -1,48 +1,64 @@
-const videoInput = document.getElementById('videoInput');
-const processButton = document.getElementById('processButton');
-const loading = document.getElementById('loading');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+const { createFFmpeg, fetchFile } = FFmpeg;
 
-// Load FFmpeg library
-const loadFFmpeg = async () => {
-    const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ log: true });
+const ffmpeg = createFFmpeg({ log: true });
+
+async function extractFrames(file) {
     await ffmpeg.load();
-    return { ffmpeg, fetchFile };
-};
+    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
 
-processButton.addEventListener('click', async () => {
-    if (!videoInput.files.length) {
-        alert('Bitte lade zuerst ein Video hoch!');
-        return;
-    }
+    // Extrahiere Frames mit 5 Frames pro Sekunde
+    await ffmpeg.run('-i', 'input.mp4', '-vf', 'fps=5', 'frame_%03d.png');
 
-    loading.style.display = 'block';
+    // Liste aller erzeugten Frames
+    const frames = ffmpeg.FS('readdir', '.')
+        .filter((file) => file.startsWith('frame_') && file.endsWith('.png'));
 
-    const { ffmpeg, fetchFile } = await loadFFmpeg();
+    // Hole die Binärdaten der Frames
+    const frameData = frames.map((frame) => {
+        const data = ffmpeg.FS('readFile', frame);
+        return new Blob([data.buffer], { type: 'image/png' });
+    });
 
-    // Read video file
-    const videoFile = videoInput.files[0];
-    const videoName = 'input.mp4';
-    const outputName = 'output.png';
+    return frameData;
+}
 
-    // Load video into FFmpeg
-    await ffmpeg.FS('writeFile', videoName, await fetchFile(videoFile));
+async function createStroboscope(file) {
+    // Extrahiere Frames
+    const frames = await extractFrames(file);
 
-    // Extract frames and generate stroboscope-like image
-    await ffmpeg.run('-i', videoName, '-vf', 'fps=10,tile=10x1', outputName);
+    // Lade die Bilder als HTMLImageElemente
+    const images = await Promise.all(frames.map((blob) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.src = URL.createObjectURL(blob);
+            img.onload = () => resolve(img);
+        });
+    }));
 
-    // Get the output image
-    const data = ffmpeg.FS('readFile', outputName);
+    // Erstelle ein Canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
 
-    // Display the result on the canvas
-    const img = new Image();
-    img.src = URL.createObjectURL(new Blob([data.buffer], { type: 'image/png' }));
-    img.onload = () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
+    // Setze die Canvas-Größe auf die Größe des Videos
+    canvas.width = images[0].width;
+    canvas.height = images[0].height;
+
+    // Überlagere die Bilder mit Transparenz
+    images.forEach((img) => {
+        ctx.globalAlpha = 0.5; // Transparenz für die Überlagerung
         ctx.drawImage(img, 0, 0);
-        loading.style.display = 'none';
-    };
+    });
+
+    // Füge das Stroboskop-Bild in die Webseite ein
+    const resultImg = document.createElement('img');
+    resultImg.src = canvas.toDataURL();
+    document.body.appendChild(resultImg);
+}
+
+// Event Listener für den Upload
+document.getElementById('uploadButton').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        createStroboscope(file);
+    }
 });
