@@ -45,7 +45,9 @@ async function createStroboscope(file) {
     // Zeichne das Key Background
     ctx.drawImage(keyBackground, 0, 0);
 
-    // Überlagere die Frames mit Differenzberechnung
+    const keyData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    // Überlagere Frames basierend auf der größten Kontur
     for (let i = 1; i < images.length; i++) {
         const frame = images[i];
 
@@ -56,37 +58,90 @@ async function createStroboscope(file) {
         offscreenCanvas.height = canvas.height;
 
         offscreenCtx.drawImage(frame, 0, 0);
+        const frameData = offscreenCtx.getImageData(0, 0, canvas.width, canvas.height).data;
 
-        // Hole die Pixel-Daten beider Bilder
-        const bgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const frameData = offscreenCtx.getImageData(0, 0, canvas.width, canvas.height);
+        // Finde die größte Kontur
+        const largestContourMask = findLargestContour(keyData, frameData, canvas.width, canvas.height);
 
-        const bgPixels = bgData.data;
-        const framePixels = frameData.data;
+        // Zeichne die Pixel der größten Kontur auf das Hauptcanvas
+        const mainImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const mainPixels = mainImageData.data;
 
-        // Berechne die Differenz
-        for (let j = 0; j < bgPixels.length; j += 4) {
-            const rDiff = Math.abs(framePixels[j] - bgPixels[j]);
-            const gDiff = Math.abs(framePixels[j + 1] - bgPixels[j + 1]);
-            const bDiff = Math.abs(framePixels[j + 2] - bgPixels[j + 2]);
-
-            // Nur die Pixel hervorheben, die sich geändert haben
-            if (rDiff > 20 || gDiff > 20 || bDiff > 20) {
-                bgPixels[j] = framePixels[j];       // R
-                bgPixels[j + 1] = framePixels[j + 1]; // G
-                bgPixels[j + 2] = framePixels[j + 2]; // B
-                bgPixels[j + 3] = 255;              // Alpha
+        for (let j = 0; j < mainPixels.length; j += 4) {
+            if (largestContourMask[j / 4]) {
+                mainPixels[j] = frameData[j];       // R
+                mainPixels[j + 1] = frameData[j + 1]; // G
+                mainPixels[j + 2] = frameData[j + 2]; // B
+                mainPixels[j + 3] = 255;              // Alpha
             }
         }
 
-        // Zeichne die aktualisierten Pixel zurück auf das Canvas
-        ctx.putImageData(bgData, 0, 0);
+        ctx.putImageData(mainImageData, 0, 0);
     }
 
     // Zeige das Stroboskop-Bild an
     const resultImg = document.createElement('img');
     resultImg.src = canvas.toDataURL();
     document.body.appendChild(resultImg);
+}
+
+function findLargestContour(bgPixels, framePixels, width, height) {
+    const diffMask = new Uint8Array(width * height);
+
+    // Berechne die Differenz-Maske
+    for (let i = 0; i < bgPixels.length; i += 4) {
+        const rDiff = Math.abs(framePixels[i] - bgPixels[i]);
+        const gDiff = Math.abs(framePixels[i + 1] - bgPixels[i + 1]);
+        const bDiff = Math.abs(framePixels[i + 2] - bgPixels[i + 2]);
+
+        diffMask[i / 4] = rDiff > 20 || gDiff > 20 || bDiff > 20 ? 1 : 0;
+    }
+
+    // Finde zusammenhängende Regionen (Konturen)
+    const visited = new Uint8Array(width * height);
+    const contours = [];
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            if (diffMask[idx] === 1 && visited[idx] === 0) {
+                const contour = floodFill(diffMask, visited, width, height, x, y);
+                contours.push(contour);
+            }
+        }
+    }
+
+    // Wähle die größte Kontur
+    const largestContour = contours.reduce((largest, current) => {
+        return current.size > largest.size ? current : largest;
+    }, { size: 0, mask: new Uint8Array(width * height) });
+
+    return largestContour.mask;
+}
+
+function floodFill(diffMask, visited, width, height, startX, startY) {
+    const stack = [[startX, startY]];
+    const mask = new Uint8Array(width * height);
+    let size = 0;
+
+    while (stack.length > 0) {
+        const [x, y] = stack.pop();
+        const idx = y * width + x;
+
+        if (x < 0 || x >= width || y < 0 || y >= height || visited[idx] === 1 || diffMask[idx] === 0) {
+            continue;
+        }
+
+        visited[idx] = 1;
+        mask[idx] = 1;
+        size++;
+
+        stack.push([x - 1, y]);
+        stack.push([x + 1, y]);
+        stack.push([x, y - 1]);
+        stack.push([x, y + 1]);
+    }
+
+    return { size, mask };
 }
 
 // Event Listener für den Upload

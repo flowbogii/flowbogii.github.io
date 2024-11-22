@@ -3,12 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stroboskop-Bild</title>
+    <title>Stroboskop-Bild Generator</title>
+    <style>
+        /* Allgemeines Styling */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+            background: #6200ea;
+            color: #fff;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .container h2 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .custom-file-upload {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            background: #6200ea;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            text-align: center;
+            transition: background 0.3s ease;
+        }
+
+        .custom-file-upload:hover {
+            background: #4500b5;
+        }
+
+        .preview-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .preview-container img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px;
+            margin-top: 20px;
+            background: #6200ea;
+            color: #fff;
+        }
+
+        footer p {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
-    <h1>Stroboskop-Bild Generator</h1>
-    <input type="file" id="uploadButton" accept="video/*">
+    <header>
+        <h1>Stroboskop-Bild Generator</h1>
+    </header>
+
+    <div class="container">
+        <h2>Video hochladen</h2>
+        <label for="uploadButton" class="custom-file-upload">Video auswählen</label>
+        <input type="file" id="uploadButton" accept="video/*">
+        
+        <div class="preview-container">
+            <h2>Stroboskop-Bild Vorschau</h2>
+            <p>Das generierte Stroboskop-Bild wird hier angezeigt.</p>
+            <div id="preview"></div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2024 Stroboskop-Bild Generator. Alle Rechte vorbehalten.</p>
+    </footer>
+
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.3/dist/ffmpeg.min.js"></script>
     <script src="script.js"></script>
+    <script>
+        const previewContainer = document.getElementById('preview');
+        const uploadButton = document.getElementById('uploadButton');
+
+        // Callback, um generierte Bilder in der Vorschau anzuzeigen
+        function showPreview(imageUrl) {
+            previewContainer.innerHTML = '';
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            previewContainer.appendChild(img);
+        }
+
+        // Initialisiere Event Listener für Datei-Upload
+        uploadButton.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                previewContainer.innerHTML = '<p>Das Stroboskop-Bild wird generiert...</p>';
+                createStroboscope(file)
+                    .then((resultUrl) => showPreview(resultUrl))
+                    .catch((err) => {
+                        console.error(err);
+                        previewContainer.innerHTML = '<p>Fehler beim Generieren des Bildes. Bitte erneut versuchen.</p>';
+                    });
+            }
+        });
+    </script>
 </body>
 </html>
