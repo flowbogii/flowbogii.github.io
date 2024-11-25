@@ -1,30 +1,4 @@
-let ffmpegBusy = false;
 
-async function runFFmpegCommand(command) {
-    while (ffmpegBusy) {
-        await new Promise((resolve) => setTimeout(resolve, 100)); // Warten, bis FFmpeg frei ist
-    }
-    ffmpegBusy = true; // FFmpeg ist jetzt beschäftigt
-    await ffmpeg.run(...command);
-    ffmpegBusy = false; // FFmpeg ist wieder frei
-}
-async function extractFrames(file) {
-    await ffmpeg.load();
-    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
-
-    // Extrahiere Frames synchron (fps=5)
-    await runFFmpegCommand(['-i', 'input.mp4', '-vf', 'fps=5', 'frame_%03d.png']);
-
-    // Liste der extrahierten Frames
-    const frames = ffmpeg.FS('readdir', '.')
-        .filter((file) => file.startsWith('frame_') && file.endsWith('.png'));
-
-    // Hole die Binärdaten der Frames
-    return frames.map((frame) => {
-        const data = ffmpeg.FS('readFile', frame);
-        return new Blob([data.buffer], { type: 'image/png' });
-    });
-}
 const { createFFmpeg, fetchFile } = FFmpeg;
 const ffmpeg = createFFmpeg({ log: true });
 let ffmpegBusy = false;
