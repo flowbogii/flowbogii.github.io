@@ -8,8 +8,6 @@ async function runFFmpegCommand(command) {
     await ffmpeg.run(...command);
     ffmpegBusy = false; // FFmpeg ist wieder frei
 }
-2. Aktualisiere den Code für die Frame-Extraktion
-Passe die Funktion an, sodass sie die Warteschlange berücksichtigt:
 async function extractFrames(file) {
     await ffmpeg.load();
     ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
@@ -27,9 +25,6 @@ async function extractFrames(file) {
         return new Blob([data.buffer], { type: 'image/png' });
     });
 }
-3. Stroboskop-Erstellung berücksichtigen
-Stelle sicher, dass auch in der Stroboskop-Erstellungslogik die FFmpeg-Befehle sequentiell ablaufen, falls zusätzliche Befehle benötigt werden.
-Vollständige, Fehlerbereinigte Version
 const { createFFmpeg, fetchFile } = FFmpeg;
 const ffmpeg = createFFmpeg({ log: true });
 let ffmpegBusy = false;
