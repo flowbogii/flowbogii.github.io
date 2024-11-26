@@ -82,6 +82,34 @@ async function createStroboscope(file) {
     return canvas.toDataURL(); // Rückgabe des generierten Bilds
 }
 
+function floodFill(diffMask, visited, width, height, startX, startY) {
+    const stack = [[startX, startY]];
+    const mask = new Uint8Array(width * height);
+    let size = 0;
+
+    while (stack.length > 0) {
+        const [x, y] = stack.pop();
+        const idx = y * width + x;
+
+        // Grenzen überprüfen und sicherstellen, dass der Punkt noch nicht besucht wurde
+        if (x < 0 || x >= width || y < 0 || y >= height || visited[idx] === 1 || diffMask[idx] === 0) {
+            continue;
+        }
+
+        visited[idx] = 1; // Als besucht markieren
+        mask[idx] = 1;    // Zum Maskenbereich hinzufügen
+        size++;           // Größe der Kontur erhöhen
+
+        // Nachbarn zur Verarbeitung hinzufügen
+        stack.push([x - 1, y]); // Links
+        stack.push([x + 1, y]); // Rechts
+        stack.push([x, y - 1]); // Oben
+        stack.push([x, y + 1]); // Unten
+    }
+
+    return { size, mask }; // Rückgabe der Konturgröße und Maske
+}
+
 function findLargestContour(bgPixels, framePixels, width, height) {
     const diffMask = new Uint8Array(width * height);
 
@@ -150,6 +178,8 @@ function erode(mask, width, height) {
     }
     return eroded;
 }
+
+
 
 function dilate(mask, width, height) {
     const dilated = new Uint8Array(mask);
