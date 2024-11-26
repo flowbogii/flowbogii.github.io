@@ -55,36 +55,40 @@ async function createStroboscope(file, frameInterval) {
         offscreenCanvas.width = canvas.width;
         offscreenCanvas.height = canvas.height;
 
+        // Zeichne das aktuelle Bild auf ein Offscreen-Canvas
         offscreenCtx.drawImage(image, 0, 0);
-        const frameData = offscreenCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const currentFrameData = offscreenCtx.getImageData(0, 0, canvas.width, canvas.height).data;
 
         if (previousFrameData) {
             const diffImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const diffPixels = diffImageData.data;
 
-            for (let i = 0; i < frameData.length; i += 4) {
-                const rDiff = Math.abs(frameData[i] - previousFrameData[i]);
-                const gDiff = Math.abs(frameData[i + 1] - previousFrameData[i + 1]);
-                const bDiff = Math.abs(frameData[i + 2] - previousFrameData[i + 2]);
+            // Vergleiche das aktuelle Frame mit dem vorherigen Frame
+            for (let i = 0; i < currentFrameData.length; i += 4) {
+                const rDiff = Math.abs(currentFrameData[i] - previousFrameData[i]);
+                const gDiff = Math.abs(currentFrameData[i + 1] - previousFrameData[i + 1]);
+                const bDiff = Math.abs(currentFrameData[i + 2] - previousFrameData[i + 2]);
 
+                // Wenn Bewegung erkannt wird, nimm die Pixel vom aktuellen Frame
                 if (rDiff > 40 || gDiff > 40 || bDiff > 40) {
-                    diffPixels[i] = frameData[i];
-                    diffPixels[i + 1] = frameData[i + 1];
-                    diffPixels[i + 2] = frameData[i + 2];
-                    diffPixels[i + 3] = 255;
+                    diffPixels[i] = currentFrameData[i];
+                    diffPixels[i + 1] = currentFrameData[i + 1];
+                    diffPixels[i + 2] = currentFrameData[i + 2];
+                    diffPixels[i + 3] = 255; // Setze die Alpha-Komponente
                 }
             }
 
+            // Schreibe die Änderungen in den Canvas
             ctx.putImageData(diffImageData, 0, 0);
-        } else {
-            ctx.drawImage(image, 0, 0);
         }
 
-        previousFrameData = frameData;
+        // Speichere das aktuelle Frame als "vorheriges Frame" für die nächste Iteration
+        previousFrameData = currentFrameData;
     });
 
-    return canvas.toDataURL();
+    return canvas.toDataURL(); // Rückgabe des Stroboskop-Bildes
 }
+
 
 // Event Listener für Schieberegler
 document.getElementById('frameInterval').addEventListener('input', (event) => {
