@@ -1,3 +1,87 @@
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log: true });
+let ffmpegBusy = false;
+
+async function runFFmpegCommand(command) {
+    while (ffmpegBusy) {
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Warten
+    }
+    ffmpegBusy = true;
+    await ffmpeg.run(...command);
+    ffmpegBusy = false;
+}
+
+async function extractFrames(file) {
+    await ffmpeg.load();
+    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
+    // Extrahiere Frames synchron (fps=5)
+    await runFFmpegCommand(['-i', 'input.mp4', '-vf', 'fps=5', 'frame_%03d.png']);
+
+    // Liste der extrahierten Frames
+    const frames = ffmpeg.FS('readdir', '.')
+        .filter((file) => file.startsWith('frame_') && file.endsWith('.png'));
+
+    // Hole die Binärdaten der Frames
+    return frames.map((frame) => {
+        const data = ffmpeg.FS('readFile', frame);
+        return new Blob([data.buffer], { type: 'image/png' });
+    });
+}
+
+async function createStroboscope(file) {
+    const frames = await extractFrames(file);
+
+    const images = await Promise.all(frames.map((blob) => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.src = URL.createObjectURL(blob);
+            img.onload = () => resolve(img);
+        });
+    }));
+
+    const keyBackground = images[0];
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = keyBackground.width;
+    canvas.height = keyBackground.height;
+
+    ctx.drawImage(keyBackground, 0, 0);
+
+    const keyData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+    for (let i = 1; i < images.length; i++) {
+        const frame = images[i];
+
+        const offscreenCanvas = document.createElement('canvas');
+        const offscreenCtx = offscreenCanvas.getContext('2d');
+        offscreenCanvas.width = canvas.width;
+        offscreenCanvas.height = canvas.height;
+
+        offscreenCtx.drawImage(frame, 0, 0);
+        const frameData = offscreenCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+
+        const largestContourMask = findLargestContour(keyData, frameData, canvas.width, canvas.height);
+
+        const mainImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const mainPixels = mainImageData.data;
+
+        for (let j = 0; j < mainPixels.length; j += 4) {
+            if (largestContourMask[j / 4]) {
+                mainPixels[j] = frameData[j];
+                mainPixels[j + 1] = frameData[j + 1];
+                mainPixels[j + 2] = frameData[j + 2];
+                mainPixels[j + 3] = 255;
+            }
+        }
+
+        ctx.putImageData(mainImageData, 0, 0);
+    }
+
+    return canvas.toDataURL(); // Rückgabe des generierten Bilds
+}
+
 function findLargestContour(bgPixels, framePixels, width, height) {
     const diffMask = new Uint8Array(width * height);
 
@@ -88,3 +172,22 @@ function dilate(mask, width, height) {
     }
     return dilated;
 }
+
+// Event Listener für Datei-Upload
+document.getElementById('uploadButton').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        const previewContainer = document.getElementById('preview');
+        previewContainer.innerHTML = '<p>Das Stroboskop-Bild wird generiert...</p>';
+        try {
+            const resultUrl = await createStroboscope(file);
+            const img = document.createElement('img');
+            img.src = resultUrl;
+            previewContainer.innerHTML = '';
+            previewContainer.appendChild(img);
+        } catch (err) {
+            console.error(err);
+            previewContainer.innerHTML = '<p>Fehler beim Generieren des Bildes. Bitte erneut versuchen.</p>';
+        }
+    }
+});
