@@ -1,3 +1,36 @@
+
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log: true });
+let ffmpegBusy = false;
+
+async function runFFmpegCommand(command) {
+    while (ffmpegBusy) {
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Warten
+    }
+    ffmpegBusy = true;
+    await ffmpeg.run(...command);
+    ffmpegBusy = false;
+}
+
+async function extractFrames(file, frameInterval) {
+    await ffmpeg.load();
+    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
+    // Extrahiere Frames
+    await runFFmpegCommand(['-i', 'input.mp4', '-vf', `select=not(mod(n\\,${frameInterval}))`, '-vsync', 'vfr', 'frame_%03d.png']);
+
+    // Liste der extrahierten Frames
+    const frames = ffmpeg.FS('readdir', '.')
+        .filter((file) => file.startsWith('frame_') && file.endsWith('.png'));
+
+    // Hole die Binärdaten der Frames
+    return frames.map((frame) => {
+        const data = ffmpeg.FS('readFile', frame);
+        return new Blob([data.buffer], { type: 'image/png' });
+    });
+}
+
+
 async function createStroboscope(file, frameInterval) {
     const frames = await extractFrames(file, frameInterval);
 
@@ -109,3 +142,32 @@ function median(values) {
     const mid = Math.floor(values.length / 2);
     return values.length % 2 !== 0 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
 }
+
+
+
+// Event Listener für Schieberegler
+document.getElementById('frameInterval').addEventListener('input', (event) => {
+    document.getElementById('frameIntervalValue').textContent = event.target.value;
+});
+
+// Event Listener für Datei-Upload
+document.getElementById('uploadButton').addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    const frameInterval = document.getElementById('frameInterval').value;
+    if (file) {
+        const previewContainer = document.getElementById('preview');
+        previewContainer.innerHTML = '<p>Das Stroboskop-Bild wird generiert...</p>';
+        try {
+            const resultUrl = await createStroboscope(file, frameInterval);
+            const img = document.createElement('img');
+            img.src = resultUrl;
+            previewContainer.innerHTML = '';
+            previewContainer.appendChild(img);
+        } catch (err) {
+            console.error(err);
+            previewContainer.innerHTML = '<p>Fehler beim Generieren des Bildes. Bitte erneut versuchen.</p>';
+        }
+    }
+});
+
+
