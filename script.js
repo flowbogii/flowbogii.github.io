@@ -110,6 +110,42 @@ function floodFill(diffMask, visited, width, height, startX, startY) {
     return { size, mask }; // Rückgabe der Konturgröße und Maske
 }
 
+
+// Funktion zur Berechnung von Aspektverhältnis und Kreisförmigkeit
+function calculateContourProperties(mask, width, height) {
+    let minX = width, minY = height, maxX = 0, maxY = 0, area = 0, perimeter = 0;
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const idx = y * width + x;
+            if (mask[idx] === 1) {
+                area++;
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+
+                // Perimeter: Zähle Nachbarn, die außerhalb der Kontur sind
+                if (x === 0 || x === width - 1 || y === 0 || y === height - 1 ||
+                    mask[(y - 1) * width + x] === 0 ||
+                    mask[(y + 1) * width + x] === 0 ||
+                    mask[y * width + (x - 1)] === 0 ||
+                    mask[y * width + (x + 1)] === 0) {
+                    perimeter++;
+                }
+            }
+        }
+    }
+
+    // Aspektverhältnis
+    const aspectRatio = (maxX - minX + 1) / (maxY - minY + 1);
+
+    // Kreisförmigkeit
+    const circularity = (4 * Math.PI * area) / (perimeter * perimeter);
+
+    return { aspectRatio, circularity };
+}
+
 function findLargestContour(bgPixels, framePixels, width, height) {
     const diffMask = new Uint8Array(width * height);
 
@@ -135,8 +171,13 @@ function findLargestContour(bgPixels, framePixels, width, height) {
             if (processedMask[idx] === 1 && visited[idx] === 0) {
                 const contour = floodFill(processedMask, visited, width, height, x, y);
 
-                // Mindestgröße für akzeptierte Konturen (mind. 500 Pixel)
-                if (contour.size > 500) {
+                // Berechnung der geometrischen Eigenschaften
+                const properties = calculateContourProperties(contour.mask, width, height);
+
+                // Bedingungen für rechteckige/runde Objekte
+                if (contour.size > 500 && 
+                    properties.aspectRatio >= 0.5 && properties.aspectRatio <= 2 &&
+                    properties.circularity >= 0.7) {
                     contours.push(contour);
                 }
             }
@@ -150,6 +191,7 @@ function findLargestContour(bgPixels, framePixels, width, height) {
 
     return largestContour.mask;
 }
+
 
 // Hilfsfunktionen für Erosion und Dilation
 function erode(mask, width, height) {
