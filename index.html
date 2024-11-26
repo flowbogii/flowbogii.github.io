@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stroboskop-Bild Generator</title>
     <style>
-        /* Allgemeines Styling */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -73,6 +72,15 @@
             margin-top: 10px;
         }
 
+        .slider-container {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .slider-container label {
+            font-size: 1rem;
+        }
+
         footer {
             text-align: center;
             padding: 10px;
@@ -96,7 +104,13 @@
         <h2>Video hochladen</h2>
         <label for="uploadButton" class="custom-file-upload">Video auswählen</label>
         <input type="file" id="uploadButton" accept="video/*">
-        
+
+        <div class="slider-container">
+            <label for="frameInterval">Frame-Intervall:</label>
+            <input type="range" id="frameInterval" min="1" max="10" value="1">
+            <span id="frameIntervalValue">1</span>
+        </div>
+
         <div class="preview-container">
             <h2>Stroboskop-Bild Vorschau</h2>
             <p>Das generierte Stroboskop-Bild wird hier angezeigt.</p>
@@ -110,31 +124,5 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.3/dist/ffmpeg.min.js"></script>
     <script src="script.js"></script>
-    <script>
-        const previewContainer = document.getElementById('preview');
-        const uploadButton = document.getElementById('uploadButton');
-
-        // Callback, um generierte Bilder in der Vorschau anzuzeigen
-        function showPreview(imageUrl) {
-            previewContainer.innerHTML = '';
-            const img = document.createElement('img');
-            img.src = imageUrl;
-            previewContainer.appendChild(img);
-        }
-
-        // Initialisiere Event Listener für Datei-Upload
-        uploadButton.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                previewContainer.innerHTML = '<p>Das Stroboskop-Bild wird generiert...</p>';
-                createStroboscope(file)
-                    .then((resultUrl) => showPreview(resultUrl))
-                    .catch((err) => {
-                        console.error(err);
-                        previewContainer.innerHTML = '<p>Fehler beim Generieren des Bildes. Bitte erneut versuchen.</p>';
-                    });
-            }
-        });
-    </script>
 </body>
 </html>
