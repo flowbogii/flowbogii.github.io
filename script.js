@@ -55,19 +55,22 @@ async function createStroboscope(file, frameInterval) {
     backgroundCanvas.height = canvas.height;
 
     backgroundCtx.drawImage(images[0], 0, 0);
-    const backgroundData = backgroundCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const backgroundImageData = backgroundCtx.getImageData(0, 0, canvas.width, canvas.height);
 
     let previousFrameData = null;
 
-    images.forEach((image, index) => {
+    // Initialisiere den Haupt-Canvas mit dem Hintergrund
+    ctx.putImageData(backgroundImageData, 0, 0);
+
+    for (let index = 1; index < images.length; index++) {
         const offscreenCanvas = document.createElement('canvas');
         const offscreenCtx = offscreenCanvas.getContext('2d');
 
         offscreenCanvas.width = canvas.width;
         offscreenCanvas.height = canvas.height;
 
-        // Zeichne das aktuelle Frame auf ein Offscreen-Canvas
-        offscreenCtx.drawImage(image, 0, 0);
+        // Zeichne das aktuelle Bild auf ein Offscreen-Canvas
+        offscreenCtx.drawImage(images[index], 0, 0);
         const currentFrameData = offscreenCtx.getImageData(0, 0, canvas.width, canvas.height).data;
 
         if (previousFrameData) {
@@ -80,17 +83,18 @@ async function createStroboscope(file, frameInterval) {
                 const gDiff = Math.abs(currentFrameData[i + 1] - previousFrameData[i + 1]);
                 const bDiff = Math.abs(currentFrameData[i + 2] - previousFrameData[i + 2]);
 
-                // Bewegungs-Logik: Wenn Pixel sich geändert haben, nimm diese aus dem aktuellen Frame
-                if (rDiff > 50 || gDiff > 50 || bDiff > 50) {
+                // Bewegungslogik: Berücksichtige nur Pixel mit signifikanter Änderung
+                if (rDiff > 30 || gDiff > 30 || bDiff > 30) {
+                    // Wenn Bewegung erkannt wird, nimm die Pixel aus dem aktuellen Frame
                     diffPixels[i] = currentFrameData[i];     // Rot
                     diffPixels[i + 1] = currentFrameData[i + 1]; // Grün
                     diffPixels[i + 2] = currentFrameData[i + 2]; // Blau
                     diffPixels[i + 3] = 255;                  // Alpha (sichtbar)
                 } else {
-                    // Hintergrund-Pixel übernehmen
-                    diffPixels[i] = backgroundData[i];
-                    diffPixels[i + 1] = backgroundData[i + 1];
-                    diffPixels[i + 2] = backgroundData[i + 2];
+                    // Wenn keine Bewegung, behalte den Hintergrund
+                    diffPixels[i] = backgroundImageData.data[i];
+                    diffPixels[i + 1] = backgroundImageData.data[i + 1];
+                    diffPixels[i + 2] = backgroundImageData.data[i + 2];
                     diffPixels[i + 3] = 255; // Voll deckend
                 }
             }
@@ -99,12 +103,13 @@ async function createStroboscope(file, frameInterval) {
             ctx.putImageData(diffImageData, 0, 0);
         }
 
-        // Speichere das aktuelle Frame als "vorheriges Frame" für die nächste Iteration
+        // Speichere das aktuelle Frame als vorheriges Frame für die nächste Iteration
         previousFrameData = currentFrameData;
-    });
+    }
 
     return canvas.toDataURL(); // Rückgabe des fertigen Bildes
 }
+
 
 
 // Event Listener für Datei-Upload
